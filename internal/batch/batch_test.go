@@ -106,6 +106,12 @@ func TestSubmitCreatesJobAndTask(t *testing.T) {
 	if task.Platform != "WebGL" {
 		t.Fatalf("task platform mismatch: %s", task.Platform)
 	}
+	if task.ImageGalleryName != "gallery1" {
+		t.Fatalf("task image gallery mismatch: %s", task.ImageGalleryName)
+	}
+	if task.ImageDefinitionName != "unity-ci-image" {
+		t.Fatalf("task image definition mismatch: %s", task.ImageDefinitionName)
+	}
 }
 
 // --- Batch API Error Propagation ---

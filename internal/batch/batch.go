@@ -10,10 +10,12 @@ type BatchAPI interface {
 
 // TaskRequest holds the parameters for a Batch task.
 type TaskRequest struct {
-	RepoURL   string
-	Branch    string
-	CommitSHA string
-	Platform  string
+	RepoURL             string
+	Branch              string
+	CommitSHA           string
+	Platform            string
+	ImageGalleryName    string
+	ImageDefinitionName string
 }
 
 // JobParams holds parameters derived from webhook payload + environment.
@@ -46,10 +48,12 @@ func (c *Client) Submit(params JobParams) error {
 	}
 
 	task := TaskRequest{
-		RepoURL:   params.RepoURL,
-		Branch:    params.Branch,
-		CommitSHA: params.CommitSHA,
-		Platform:  params.Platform,
+		RepoURL:             params.RepoURL,
+		Branch:              params.Branch,
+		CommitSHA:           params.CommitSHA,
+		Platform:            params.Platform,
+		ImageGalleryName:    params.ImageGalleryName,
+		ImageDefinitionName: params.ImageDefinitionName,
 	}
 
 	if err := c.API.AddTask(jobID, task); err != nil {

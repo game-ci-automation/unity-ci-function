@@ -229,6 +229,28 @@ func TestLogsWarnOnInvalidSignature(t *testing.T) {
 	}
 }
 
+func TestLogsWarnOnMalformedPayload(t *testing.T) {
+	mock := &mockBatchAPI{}
+	var buf bytes.Buffer
+	logger := log.New(&buf, "", 0)
+
+	batchClient := &batch.Client{API: mock, PoolID: "test-pool"}
+	h := NewHandler(testSecret, batchClient, logger)
+
+	body := `{not valid json`
+	req := httptest.NewRequest(http.MethodPost, "/api/github-webhook", strings.NewReader(body))
+	req.Header.Set("X-Hub-Signature-256", sign(body, testSecret))
+	req.Header.Set("X-GitHub-Event", "push")
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	logOutput := buf.String()
+	if !strings.Contains(logOutput, "WARN") {
+		t.Fatalf("expected WARN log, got: %s", logOutput)
+	}
+}
+
 func TestLogsErrorOnBatchFailure(t *testing.T) {
 	mock := &mockBatchAPI{jobErr: errors.New("batch down")}
 	var buf bytes.Buffer
