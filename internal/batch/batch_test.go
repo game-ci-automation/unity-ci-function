@@ -9,13 +9,15 @@ import (
 
 type mockBatchAPI struct {
 	createdJobs  []string      // job IDs passed to CreateJob
+	createdPools []PoolConfig  // pool configs passed to CreateJob
 	createdTasks []TaskRequest // tasks passed to AddTask
 	jobErr       error
 	taskErr      error
 }
 
-func (m *mockBatchAPI) CreateJob(jobID, poolID string) error {
+func (m *mockBatchAPI) CreateJob(jobID string, pool PoolConfig) error {
 	m.createdJobs = append(m.createdJobs, jobID)
+	m.createdPools = append(m.createdPools, pool)
 	return m.jobErr
 }
 
@@ -28,12 +30,10 @@ func (m *mockBatchAPI) AddTask(jobID string, task TaskRequest) error {
 
 func TestJobParametersFromPayload(t *testing.T) {
 	params := JobParams{
-		RepoURL:             "https://github.com/test/repo.git",
-		Branch:              "refs/heads/main",
-		CommitSHA:           "abc123def456",
-		Platform:            "WebGL",
-		ImageGalleryName:    "gallery1",
-		ImageDefinitionName: "unity-ci-image",
+		RepoURL:   "https://github.com/test/repo.git",
+		Branch:    "refs/heads/main",
+		CommitSHA: "abc123def456",
+		Platform:  "WebGL",
 	}
 
 	if params.RepoURL != "https://github.com/test/repo.git" {
@@ -66,19 +66,50 @@ func TestJobIDContainsCommitSHA(t *testing.T) {
 	}
 }
 
-// --- Submit Success ---
+// --- Submit passes PoolConfig to CreateJob ---
+
+func TestSubmitPassesPoolConfigToCreateJob(t *testing.T) {
+	mock := &mockBatchAPI{}
+	pool := PoolConfig{
+		VMSize:          "Standard_D4s_v3",
+		ImageResourceID: "/subscriptions/xxx/resourceGroups/rg/providers/Microsoft.Compute/galleries/gallery1/images/unity-ci-image/versions/latest",
+	}
+	client := Client{API: mock, Pool: pool}
+
+	params := JobParams{
+		RepoURL:   "https://github.com/test/repo.git",
+		Branch:    "refs/heads/main",
+		CommitSHA: "abc123def456",
+		Platform:  "WebGL",
+	}
+
+	err := client.Submit(params)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	if len(mock.createdPools) != 1 {
+		t.Fatalf("expected 1 pool config, got %d", len(mock.createdPools))
+	}
+	if mock.createdPools[0].VMSize != "Standard_D4s_v3" {
+		t.Fatalf("pool VM size mismatch: %s", mock.createdPools[0].VMSize)
+	}
+	if mock.createdPools[0].ImageResourceID == "" {
+		t.Fatal("pool image resource ID should not be empty")
+	}
+}
+
+// --- Submit creates job and task ---
 
 func TestSubmitCreatesJobAndTask(t *testing.T) {
 	mock := &mockBatchAPI{}
-	client := Client{API: mock, PoolID: "test-pool"}
+	client := Client{API: mock, Pool: PoolConfig{VMSize: "Standard_D4s_v3", ImageResourceID: "/subscriptions/xxx/resourceGroups/rg/providers/Microsoft.Compute/galleries/gallery1/images/unity-ci-image/versions/latest"}}
 
 	params := JobParams{
-		RepoURL:             "https://github.com/test/repo.git",
-		Branch:              "refs/heads/main",
-		CommitSHA:           "abc123def456",
-		Platform:            "WebGL",
-		ImageGalleryName:    "gallery1",
-		ImageDefinitionName: "unity-ci-image",
+		RepoURL:   "https://github.com/test/repo.git",
+		Branch:    "refs/heads/main",
+		CommitSHA: "abc123def456",
+		Platform:  "WebGL",
 	}
 
 	err := client.Submit(params)
@@ -106,19 +137,13 @@ func TestSubmitCreatesJobAndTask(t *testing.T) {
 	if task.Platform != "WebGL" {
 		t.Fatalf("task platform mismatch: %s", task.Platform)
 	}
-	if task.ImageGalleryName != "gallery1" {
-		t.Fatalf("task image gallery mismatch: %s", task.ImageGalleryName)
-	}
-	if task.ImageDefinitionName != "unity-ci-image" {
-		t.Fatalf("task image definition mismatch: %s", task.ImageDefinitionName)
-	}
 }
 
 // --- Batch API Error Propagation ---
 
 func TestSubmitReturnsErrorOnJobCreationFailure(t *testing.T) {
 	mock := &mockBatchAPI{jobErr: errors.New("batch unavailable")}
-	client := Client{API: mock, PoolID: "test-pool"}
+	client := Client{API: mock, Pool: PoolConfig{}}
 
 	err := client.Submit(JobParams{CommitSHA: "abc123"})
 	if err == nil {
@@ -128,7 +153,7 @@ func TestSubmitReturnsErrorOnJobCreationFailure(t *testing.T) {
 
 func TestSubmitReturnsErrorOnTaskCreationFailure(t *testing.T) {
 	mock := &mockBatchAPI{taskErr: errors.New("task rejected")}
-	client := Client{API: mock, PoolID: "test-pool"}
+	client := Client{API: mock, Pool: PoolConfig{}}
 
 	err := client.Submit(JobParams{CommitSHA: "abc123"})
 	if err == nil {

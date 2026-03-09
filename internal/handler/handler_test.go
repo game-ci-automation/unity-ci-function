@@ -31,7 +31,7 @@ type mockBatchAPI struct {
 	taskErr   error
 }
 
-func (m *mockBatchAPI) CreateJob(jobID, poolID string) error {
+func (m *mockBatchAPI) CreateJob(jobID string, pool batch.PoolConfig) error {
 	m.submitted = true
 	return m.jobErr
 }
@@ -41,7 +41,7 @@ func (m *mockBatchAPI) AddTask(jobID string, task batch.TaskRequest) error {
 }
 
 func newTestHandler(mock *mockBatchAPI) http.Handler {
-	batchClient := &batch.Client{API: mock, PoolID: "test-pool"}
+	batchClient := &batch.Client{API: mock, Pool: batch.PoolConfig{}}
 	return NewHandler(testSecret, batchClient, log.Default())
 }
 
@@ -190,7 +190,7 @@ func TestLogsInfoOnSuccessfulSubmission(t *testing.T) {
 	var buf bytes.Buffer
 	logger := log.New(&buf, "", 0)
 
-	batchClient := &batch.Client{API: mock, PoolID: "test-pool"}
+	batchClient := &batch.Client{API: mock, Pool: batch.PoolConfig{}}
 	h := NewHandler(testSecret, batchClient, logger)
 
 	body := `{"ref":"refs/heads/main","repository":{"clone_url":"https://github.com/test/repo.git"},"head_commit":{"id":"abc123"}}`
@@ -212,7 +212,7 @@ func TestLogsWarnOnInvalidSignature(t *testing.T) {
 	var buf bytes.Buffer
 	logger := log.New(&buf, "", 0)
 
-	batchClient := &batch.Client{API: mock, PoolID: "test-pool"}
+	batchClient := &batch.Client{API: mock, Pool: batch.PoolConfig{}}
 	h := NewHandler(testSecret, batchClient, logger)
 
 	body := `{}`
@@ -234,7 +234,7 @@ func TestLogsWarnOnMalformedPayload(t *testing.T) {
 	var buf bytes.Buffer
 	logger := log.New(&buf, "", 0)
 
-	batchClient := &batch.Client{API: mock, PoolID: "test-pool"}
+	batchClient := &batch.Client{API: mock, Pool: batch.PoolConfig{}}
 	h := NewHandler(testSecret, batchClient, logger)
 
 	body := `{not valid json`
@@ -256,7 +256,7 @@ func TestLogsErrorOnBatchFailure(t *testing.T) {
 	var buf bytes.Buffer
 	logger := log.New(&buf, "", 0)
 
-	batchClient := &batch.Client{API: mock, PoolID: "test-pool"}
+	batchClient := &batch.Client{API: mock, Pool: batch.PoolConfig{}}
 	h := NewHandler(testSecret, batchClient, logger)
 
 	body := `{"ref":"refs/heads/main","repository":{"clone_url":"https://github.com/test/repo.git"},"head_commit":{"id":"abc123"}}`

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Function App submits a build job to Azure Batch and returns immediately (fire-and-forget). The Batch node runs the build independently (20-30 min).
+Function App creates an ephemeral Batch Pool (autoPool), submits a build job, and returns immediately (fire-and-forget). The Batch node runs the build independently (20-30 min). Pool is auto-deleted when the job completes.
 
 ## Job Parameters
 
@@ -16,13 +16,22 @@ Derived from webhook payload + Function App environment:
 | `platform` | Function App env (`PLATFORM`) | Build target (e.g. WebGL) |
 | `image_id` | Function App env (`IMAGE_GALLERY_NAME`, `IMAGE_DEFINITION_NAME`) | Specialized VM image |
 
-## Batch Pool Configuration
+## Pool Lifecycle (autoPool)
+
+Function creates a Job with `autoPoolSpecification` — Azure Batch automatically creates a dedicated pool for this job and deletes it when the job completes.
 
 | Setting | Value | Reason |
 |---------|-------|--------|
+| Pool Lifetime | `job` | Pool lives only for this job's duration |
 | VM Image | Specialized image from Shared Image Gallery | machine ID preserved → Unity license valid |
 | VM Size | TBD | Cost vs build speed tradeoff |
 | Node Count | Fixed 1 | Unity 라이선스 정책상 한 계정당 동시 빌드 1개만 허용 |
+
+### Why autoPool (not persistent pool)
+
+- **비용**: Pool이 없으면 VM 비용 0. 빌드할 때만 VM 생성
+- **단순성**: Function이 Pool lifecycle을 직접 관리할 필요 없음
+- **정리**: Job 완료 시 자동 삭제 — orphaned resource 없음
 
 ## Batch Node Execution
 
@@ -35,9 +44,29 @@ Sequence on the Batch node after spin-up:
    - `docker run` game-ci container
    - Mount: `/project`, license file
    - Unity batchmode build
-5. Upload build artifacts → Azure Blob Storage (`{branch}/{commit}/`)
-6. Report build result → GitHub commit status (PAT via Key Vault)
-7. Node auto-deleted after completion
+5. Upload build artifacts → Azure Blob Storage (`artifacts/{commit}/build.zip`)
+6. Upload build status → Azure Blob Storage (`artifacts/{commit}/status.json`)
+7. Report build result → GitHub commit status (PAT via Key Vault)
+8. Job completes → autoPool auto-deleted
+
+## Build Result Storage
+
+Batch node uploads results to Azure Blob Storage:
+
+### Artifact: `artifacts/{commit-sha}/build.zip`
+- Unity build output
+
+### Status: `artifacts/{commit-sha}/status.json`
+```json
+{
+  "commit": "abc123",
+  "status": "success|failure",
+  "platform": "WebGL",
+  "artifact": "artifacts/abc123/build.zip",
+  "duration": 1234,
+  "timestamp": "2026-03-09T21:30:00Z"
+}
+```
 
 ## Build Script (`scripts/build.sh`)
 
@@ -50,8 +79,11 @@ Sequence on the Batch node after spin-up:
 - No explicit credentials needed
 
 ### API Calls
-1. Create Job (or reuse existing pool job)
+1. Create Job with `autoPoolSpecification` (pool created automatically)
 2. Add Task to Job with:
    - Command line: `scripts/build.sh` execution
-   - Environment variables: repo_url, branch, commit, platform
+   - Environment variables: repo_url, branch, commit, platform, image_gallery_name, image_definition_name
    - Resource files: license from Key Vault
+
+### Job ID
+- Format: `unity-build-{commit-sha}` (idempotent — same commit won't create duplicate jobs)

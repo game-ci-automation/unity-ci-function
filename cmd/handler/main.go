@@ -15,11 +15,14 @@ import (
 func main() {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
-	// Read environment variables (injected by Bootstrap Terraform)
+	// Read environment variables (injected by Terraform)
 	keyVaultName := mustEnv("KEY_VAULT_NAME")
-	batchAccountName := mustEnv("BATCH_ACCOUNT_NAME")
-	batchAccountRegion := mustEnv("BATCH_ACCOUNT_REGION")
-	batchPoolID := mustEnv("BATCH_POOL_ID")
+	batchAccountURL := mustEnv("BATCH_ACCOUNT_URL")
+	imageResourceID := mustEnv("IMAGE_RESOURCE_ID")
+	vmSize := os.Getenv("VM_SIZE")
+	if vmSize == "" {
+		vmSize = "Standard_D4s_v3"
+	}
 
 	// Azure Functions Custom Handler port
 	port := os.Getenv("FUNCTIONS_CUSTOMHANDLER_PORT")
@@ -39,14 +42,17 @@ func main() {
 	}
 
 	// Batch API client
-	batchAPI, err := internalbatch.NewAzureBatchAPI(batchAccountName, batchAccountRegion)
+	batchAPI, err := internalbatch.NewAzureBatchAPI(batchAccountURL)
 	if err != nil {
 		logger.Fatalf("ERROR: failed to create Batch API client: %v", err)
 	}
 
 	batchClient := &internalbatch.Client{
-		API:    batchAPI,
-		PoolID: batchPoolID,
+		API: batchAPI,
+		Pool: internalbatch.PoolConfig{
+			VMSize:          vmSize,
+			ImageResourceID: imageResourceID,
+		},
 	}
 
 	// Wire handler

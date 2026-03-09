@@ -19,13 +19,12 @@ type AzureBatchAPI struct {
 }
 
 // NewAzureBatchAPI creates a Batch API client using Managed Identity.
-func NewAzureBatchAPI(accountName, region string) (*AzureBatchAPI, error) {
+// accountURL format: https://{account}.{region}.batch.azure.com
+func NewAzureBatchAPI(accountURL string) (*AzureBatchAPI, error) {
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return nil, fmt.Errorf("create credential: %w", err)
 	}
-
-	accountURL := fmt.Sprintf("https://%s.%s.batch.azure.com", accountName, region)
 
 	return &AzureBatchAPI{
 		accountURL: accountURL,
@@ -43,8 +42,9 @@ func (a *AzureBatchAPI) getToken(ctx context.Context) (string, error) {
 	return token.Token, nil
 }
 
-// CreateJob creates a Batch job under the specified pool.
-func (a *AzureBatchAPI) CreateJob(jobID, poolID string) error {
+// CreateJob creates a Batch job with autoPoolSpecification.
+// The pool is automatically created and deleted with the job lifecycle.
+func (a *AzureBatchAPI) CreateJob(jobID string, pool PoolConfig) error {
 	ctx := context.Background()
 	token, err := a.getToken(ctx)
 	if err != nil {
@@ -53,8 +53,20 @@ func (a *AzureBatchAPI) CreateJob(jobID, poolID string) error {
 
 	body := map[string]interface{}{
 		"id": jobID,
-		"poolInfo": map[string]string{
-			"poolId": poolID,
+		"poolInfo": map[string]interface{}{
+			"autoPoolSpecification": map[string]interface{}{
+				"poolLifetimeOption": "job",
+				"pool": map[string]interface{}{
+					"vmSize":               pool.VMSize,
+					"targetDedicatedNodes": 1,
+					"virtualMachineConfiguration": map[string]interface{}{
+						"imageReference": map[string]string{
+							"virtualMachineImageId": pool.ImageResourceID,
+						},
+						"nodeAgentSKUId": "batch.node.ubuntu 22.04",
+					},
+				},
+			},
 		},
 	}
 
@@ -103,8 +115,6 @@ func (a *AzureBatchAPI) AddTask(jobID string, task TaskRequest) error {
 		{"name": "BRANCH", "value": task.Branch},
 		{"name": "COMMIT_SHA", "value": task.CommitSHA},
 		{"name": "PLATFORM", "value": task.Platform},
-		{"name": "IMAGE_GALLERY_NAME", "value": task.ImageGalleryName},
-		{"name": "IMAGE_DEFINITION_NAME", "value": task.ImageDefinitionName},
 	}
 
 	body := map[string]interface{}{
