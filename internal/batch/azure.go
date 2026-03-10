@@ -118,9 +118,9 @@ func (a *AzureBatchAPI) AddTask(jobID string, task TaskRequest) error {
 	}
 
 	body := map[string]interface{}{
-		"id":                   fmt.Sprintf("task-%s", task.CommitSHA),
-		"commandLine":          commandLine,
-		"environmentSettings":  envSettings,
+		"id":                  fmt.Sprintf("task-%s", task.CommitSHA),
+		"commandLine":         commandLine,
+		"environmentSettings": envSettings,
 	}
 
 	jsonBody, err := json.Marshal(body)

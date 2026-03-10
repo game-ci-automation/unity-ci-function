@@ -20,9 +20,6 @@ func main() {
 	batchAccountURL := mustEnv("BATCH_ACCOUNT_URL")
 	imageResourceID := mustEnv("IMAGE_RESOURCE_ID")
 	vmSize := os.Getenv("VM_SIZE")
-	if vmSize == "" {
-		vmSize = "Standard_D4s_v3"
-	}
 
 	// Azure Functions Custom Handler port
 	port := os.Getenv("FUNCTIONS_CUSTOMHANDLER_PORT")

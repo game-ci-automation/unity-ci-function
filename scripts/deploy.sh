@@ -32,6 +32,12 @@ with zipfile.ZipFile('deploy.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.write(os.path.join(root, f), path)
 "
 
+echo "=== Setting VM_SIZE app setting ==="
+az functionapp config appsettings set \
+  --resource-group "$RESOURCE_GROUP_NAME" \
+  --name "$FUNCTION_APP_NAME" \
+  --settings "VM_SIZE=${VM_SIZE}"
+
 echo "=== Deploying to $FUNCTION_APP_NAME ==="
 az functionapp deployment source config-zip \
   --resource-group "$RESOURCE_GROUP_NAME" \
