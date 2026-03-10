@@ -35,7 +35,7 @@ GitHub push event payload. Key fields used:
 | 204 No Content | Non-push event (e.g. `ping`) — ignored | (empty) |
 | 400 Bad Request | Invalid or unparseable JSON payload | `{"error": "invalid payload"}` |
 | 401 Unauthorized | Missing or invalid `X-Hub-Signature-256` | `{"error": "invalid signature"}` |
-| 500 Internal Server Error | Batch API call failed | `{"error": "batch submission failed"}` |
+| 500 Internal Server Error | Batch API call failed | `{"error": "batch submission failed", "detail": "<error message>"}` |
 
 ## Signature Validation
 

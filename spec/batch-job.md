@@ -13,8 +13,8 @@ Derived from webhook payload + Function App environment:
 | `repo_url` | Webhook payload (`repository.clone_url`) | Git clone URL |
 | `branch` | Webhook payload (`ref`) | Branch ref (e.g. `refs/heads/main`) |
 | `commit` | Webhook payload (`head_commit.id`) | Commit SHA |
-| `platform` | Function App env (`PLATFORM`) | Build target (e.g. WebGL) |
-| `image_id` | Function App env (`IMAGE_GALLERY_NAME`, `IMAGE_DEFINITION_NAME`) | Specialized VM image |
+| `platform` | Function App env (`PLATFORM`) — 미구현: handler가 아직 읽지 않음 | Build target (e.g. WebGL) |
+| `image_id` | Function App env (`IMAGE_RESOURCE_ID`) | Full Azure resource ID for specialized VM image |
 
 ## Pool Lifecycle (autoPool)
 
@@ -24,7 +24,7 @@ Function creates a Job with `autoPoolSpecification` — Azure Batch automaticall
 |---------|-------|--------|
 | Pool Lifetime | `job` | Pool lives only for this job's duration |
 | VM Image | Specialized image from Shared Image Gallery | machine ID preserved → Unity license valid |
-| VM Size | TBD | Cost vs build speed tradeoff |
+| VM Size | Configurable via `.env` → deploy.sh가 Function App setting으로 주입 (e.g. `Standard_D8ads_V5`) | Cost vs build speed tradeoff |
 | Node Count | Fixed 1 | Unity 라이선스 정책상 한 계정당 동시 빌드 1개만 허용 |
 
 ### Why autoPool (not persistent pool)
@@ -82,8 +82,7 @@ Batch node uploads results to Azure Blob Storage:
 1. Create Job with `autoPoolSpecification` (pool created automatically)
 2. Add Task to Job with:
    - Command line: `scripts/build.sh` execution
-   - Environment variables: repo_url, branch, commit, platform, image_gallery_name, image_definition_name
-   - Resource files: license from Key Vault
+   - Environment variables: `REPO_URL`, `BRANCH`, `COMMIT_SHA`, `PLATFORM`
 
 ### Job ID
 - Format: `unity-build-{commit-sha}` (idempotent — same commit won't create duplicate jobs)

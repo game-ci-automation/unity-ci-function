@@ -9,10 +9,10 @@ Function App is a thin trigger — validate, submit, return. No retries within t
 | Invalid signature | 401 | Reject immediately, log warning |
 | Invalid JSON body | 400 | Reject immediately, log warning |
 | Non-push event | 204 | Ignore silently |
-| Pool creation fails | 500 | Return error, log error |
-| Batch API unreachable | 500 | Return error, log error |
-| Batch API rejects job | 500 | Return error, log error |
-| Key Vault unreachable | 500 | Return error, log error |
+| Pool creation fails | 500 | Return error with `detail`, log error |
+| Batch API unreachable | 500 | Return error with `detail`, log error |
+| Batch API rejects job | 500 | Return error with `detail`, log error |
+| Key Vault unreachable | 500 | Return error with `detail`, log error |
 
 ## Logging
 
