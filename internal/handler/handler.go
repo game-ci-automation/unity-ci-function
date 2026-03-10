@@ -47,7 +47,7 @@ func NewHandler(secret string, batchClient *batch.Client, logger *log.Logger) ht
 			logger.Printf("ERROR: batch submission failed — %v", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "batch submission failed"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "batch submission failed", "detail": err.Error()})
 			return
 		}
 
